@@ -87,7 +87,7 @@ int bellman_ford_hybrid(const Graph* g, int src, int split, int threads, int* ou
         #pragma omp parallel for schedule(static)
         for (int i=0;i<V;i++) h_out[i] = h_in[i];
         gpu_check(cudaMemcpy(d_in, h_in, V*sizeof(int), cudaMemcpyHostToDevice), "cpy h_in->d_in");
-        gpu_check(cudaMemcpy(d_out_vec, h_in, V*sizeof(int), cudaMemcpyDeviceToDevice), "cpy in->out");
+        gpu_check(cudaMemcpy(d_out_vec, h_in, V*sizeof(int), cudaMemcpyHostToDevice), "cpy in->out");
         int zero=0; gpu_check(cudaMemcpy(d_updated, &zero, sizeof(int), cudaMemcpyHostToDevice), "reset flag");
 
         int cpu_updated = 0;
