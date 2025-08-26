@@ -3,6 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#include <sys/stat.h>
 #include "graphGen.h"
 #include "graph.h"
 
@@ -23,8 +24,7 @@ Graph* get_or_create_graph(int V, int max_w, int min_w, double density) {
         long long maxE = (long long)V * (V-1);
         long long E = (long long)(density * (double)maxE);
         if (E < V) E = V;
-        printf("[gen] creating %s with ~%lld edges (density=%.3f)
-", fname, E, density);
+        printf("[gen] creating %s with ~%lld edges (density=%.3f)\n", fname, E, density);
         if (generate_graph_file(fname, V, (int)E, min_w, max_w, (unsigned int)time(NULL)) != 0) {
             fprintf(stderr, "Failed generating graph\n");
             return NULL;
@@ -35,7 +35,8 @@ Graph* get_or_create_graph(int V, int max_w, int min_w, double density) {
 
 int save_distance_vector(const char* tag, int V, int max_w, int min_w, const int* dist, int n, int neg_cycle) {
     char outname[256];
-    snprintf(outname, sizeof(outname), "%s_output__%d_%d_%d.txt", tag, V, max_w, min_w);
+    mkdir("reports", 0777);
+    snprintf(outname, sizeof(outname), "reports/%s_output__%d_%d_%d.txt", tag, V, max_w, min_w);
     FILE* fp = fopen(outname, "w");
     if (!fp) { perror("fopen"); return -1; }
     if (neg_cycle) {

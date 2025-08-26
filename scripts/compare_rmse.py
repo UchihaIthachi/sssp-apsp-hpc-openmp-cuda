@@ -19,5 +19,9 @@ def rmse(a,b):
     return math.sqrt(s/max(n,1))
 if __name__=="__main__":
     if len(sys.argv)<3: print("Usage: python3 compare_rmse.py ref.txt test.txt"); sys.exit(1)
-    a=read_vec(sys.argv[1]); b=read_vec(sys.argv[2])
+    
+    path1 = f"reports/{sys.argv[1]}"
+    path2 = f"reports/{sys.argv[2]}"
+
+    a=read_vec(path1); b=read_vec(path2)
     print(f"RMSE: {rmse(a,b):.6f}")

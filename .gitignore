@@ -1,0 +1,12 @@
+# Compiled binaries
+bin/
+
+# Generated data
+data/graph_*.txt
+
+# Benchmark results
+benchmark_results.json
+
+# Output reports
+reports/
+*_output__*.txt

@@ -1,90 +1,71 @@
-# Bellman–Ford HPC: OpenMP + CUDA (Modular Skeleton)
+<a href="https://colab.research.google.com/github/UchihaIthachi/bellman-ford-hpc-openmp-cuda/blob/main/Bellman-Ford-HPC-Analysis.ipynb" target="_blank" rel="noopener noreferrer">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
 
-This project implements the Bellman–Ford shortest path algorithm in four variants, demonstrating High-Performance Computing (HPC) techniques with OpenMP, CUDA, and a hybrid CPU–GPU design.
+# Bellman-Ford HPC: A Comparative Analysis
 
-Variants:
+This project provides and analyzes four different implementations of the Bellman-Ford shortest path algorithm, showcasing a range of high-performance computing (HPC) techniques.
 
-- `BF_serial` — single-threaded baseline
-- `BF_openmp` — CPU parallel (OpenMP), ping-pong arrays
-- `BF_cuda` — GPU parallel (CUDA), edge-parallel + `atomicMin`
-- `BF_hybrid` — CPU+GPU split (partition by destination; tune ratio)
+- **Serial:** A standard, single-threaded baseline implementation.
+- **OpenMP:** A parallel implementation using OpenMP for multi-core CPUs.
+- **CUDA:** A massively parallel implementation using CUDA for NVIDIA GPUs.
+- **Hybrid:** A combined CPU+GPU approach using both OpenMP and CUDA.
 
-## Build
+## Quickstart: Performance Analysis with Jupyter
 
-Requires GCC with OpenMP and the NVIDIA CUDA Toolkit.
+The best way to explore this project is through the interactive Jupyter Notebook. It will guide you through building the code, running benchmarks, and visualizing the performance results.
+
+**>> [Open the Performance Analysis Notebook](Bellman-Ford-HPC-Analysis.ipynb) <<**
+
+## Manual Build and Run
+
+If you prefer to work from the command line, you can build and run the executables manually.
+
+### Build
+
+You will need GCC (with OpenMP) and the NVIDIA CUDA Toolkit (`nvcc`).
 
 ```bash
 make
 ```
 
-Builds: BF_serial, BF_openmp, BF_cuda, BF_hybrid.
+This will create four executables: `BF_serial`, `BF_openmp`, `BF_cuda`, and `BF_hybrid`.
 
-## Run
+### Run
 
-Examples (graph with 5000 vertices, edge weights in [-30,30]):
+Here are some examples of how to run each variant. The executables will automatically generate graph data if it doesn't exist.
 
-# Serial
+**Serial**
 
 ```bash
-./BF_serial  5000 -30 30 0.001
-OMP_NUM_THREADS=8
+./bin/BF_serial 5000 -30 30 0.001
 ```
 
-# OpenMP (multi-core CPU, 8 threads)
+**OpenMP (8 threads)**
 
 ```bash
-./BF_openmp 5000 -30 30 0.001 8
+OMP_NUM_THREADS=8 ./bin/BF_openmp 5000 -30 30 0.001 8
 ```
 
-# CUDA (GPU acceleration)
+**CUDA**
 
 ```bash
-./BF_cuda     5000 -30 30 0.001
-OMP_NUM_THREADS=8
+./bin/BF_cuda 5000 -30 30 0.001
 ```
 
-# Hybrid (CPU+GPU, 60% edges on GPU)
+**Hybrid (60% of work on GPU)**
 
 ```bash
-./BF_hybrid 5000 -30 30 0.6 0.001 8
+OMP_NUM_THREADS=8 ./bin/BF_hybrid 5000 -30 30 0.6 0.001 8
 ```
 
-Graphs auto-save as `data/graph_<V>_<max>_<min>.txt`.  
-Outputs: `serial/openmp/cuda/hybrid_output__V_max_min.txt`.
+## Validate Results
 
-## Validate
-
-Compare each variant’s output against the serial baseline with RMSE:
+After running the benchmarks, you can compare the output of the parallel implementations against the serial baseline to ensure correctness. The Root Mean Square Error (RMSE) should be close to 0.
 
 ```bash
+# Example for a graph with 5000 vertices
 python3 scripts/compare_rmse.py serial_output__5000_30_-30.txt openmp_output__5000_30_-30.txt
 python3 scripts/compare_rmse.py serial_output__5000_30_-30.txt cuda_output__5000_30_-30.txt
 python3 scripts/compare_rmse.py serial_output__5000_30_-30.txt hybrid_output__5000_30_-30.txt
 ```
-
-RMSE near 0.0 confirms equivalence.
-
-## Notes & Insights
-
-OpenMP
-
-- Uses two arrays (ping-pong) to avoid heavy locking; only minimal critical region for safe updates.
-- Experiment with schedule(static) vs. schedule(guided) for load balance.
-
-CUDA
-
-- Launches one thread per edge; uses atomicMin to update dist[v].
-- Tune block size (128–512) and grid size for your GPU.
-- Each iteration checks a global “updated” flag for early stopping.
-
-Hybrid
-
-- Splits work between CPU (OpenMP) and GPU (CUDA).
-- Partition ratio configurable (e.g., 0.6 = 60% edges on GPU).
-- Overlaps CPU relaxation with GPU kernel; merges results each iteration.
-
-Algorithm semantics
-
-- Stops early when no updates occur in an iteration.
-
-- If updates occur in the V-th iteration, reports a negative weight cycle.
