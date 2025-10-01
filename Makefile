@@ -52,6 +52,7 @@ else
     else
         ARCH := $(ARCH_DETECT)
     endif
+    ARCH := $(strip $(ARCH))
     NVCCFLAGS += -gencode arch=compute_$(ARCH),code=sm_$(ARCH)
 endif
 
