@@ -12,7 +12,7 @@
  */
 
 #include "graph.h"
-#include "graph_io.h"
+#include "utils.h"
 #include "graphGen.h"
 #include <cuda_runtime.h>
 #include <stdio.h>

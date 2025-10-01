@@ -7,7 +7,7 @@
  */
 
 #include "graph.h"
-#include "graph_io.h"
+#include "utils.h"
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h>

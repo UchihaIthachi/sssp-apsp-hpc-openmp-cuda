@@ -5,7 +5,7 @@
 #include <omp.h>
 
 #include "graph.h"
-#include "graph_io.h"
+#include "utils.h"
 #include "graphGen.h"
 
 /* Build adjacency lists from an edge list (same as serial version) */

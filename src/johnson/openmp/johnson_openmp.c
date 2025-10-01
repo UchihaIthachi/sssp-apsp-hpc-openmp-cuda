@@ -1,7 +1,7 @@
 // OpenMP implementation of Johnson's algorithm for all-pairs shortest paths.
 
 #include "graph.h"
-#include "graph_io.h"
+#include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>

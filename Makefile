@@ -4,7 +4,13 @@
 
 # Compilers
 CC := gcc
+# Find nvcc, checking the default Colab path as a fallback
 NVCC := $(shell command -v nvcc 2>/dev/null)
+ifeq ($(NVCC),)
+    ifneq ($(wildcard /usr/local/cuda/bin/nvcc),)
+        NVCC := /usr/local/cuda/bin/nvcc
+    endif
+endif
 
 # Directories
 BIN_DIR := bin

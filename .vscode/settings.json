@@ -1,0 +1,8 @@
+{
+  "files.associations": {
+    "MakeFile": "pip-requirements",
+    "*.css": "tailwindcss",
+    "graph.h": "c",
+    "stdio.h": "c"
+  }
+}

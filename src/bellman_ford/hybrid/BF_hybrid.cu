@@ -4,7 +4,7 @@
 #include <omp.h>
 #include <cuda_runtime.h>
 #include "graph.h"
-#include "graph_io.h"
+#include "utils.h"
 
 static inline int relax_add_host(int a, int b) {
     if (a == INT_MAX) return INT_MAX;

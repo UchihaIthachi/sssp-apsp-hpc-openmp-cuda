@@ -5,7 +5,7 @@
 #include <time.h>
 
 #include "graph.h"
-#include "graph_io.h"
+#include "utils.h"
 #include "graphGen.h"
 
 /*
