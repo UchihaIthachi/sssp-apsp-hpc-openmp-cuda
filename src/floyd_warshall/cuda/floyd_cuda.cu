@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
     cudaEventElapsedTime(&ms, start, stop);
     printf("[floyd_cuda] time: %.6f s\n", ms / 1000.0f);
 
-    save_distance_matrix("floyd_cuda", g->V, max_w, min_w, dist_matrix);
+    save_distance_matrix("floyd_cuda", g->V, max_w, min_w, dist_matrix, false);
 
     free(dist_matrix);
     free_graph(g);
