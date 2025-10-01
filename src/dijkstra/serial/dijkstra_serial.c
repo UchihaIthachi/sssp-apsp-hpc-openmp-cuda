@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <time.h>
 
-#include "../../include/graph.h"
-#include "../../utils/graph_io.h"
+#include "graph.h"
+#include "graph_io.h"
+#include "graphGen.h"
 
 /*
  * Simple serial Dijkstra algorithm using adjacency lists built from the
@@ -67,30 +69,43 @@ static void dijkstra_serial(int V, int *head, int *to, int *weight, int *next, i
 
 int main(int argc, char **argv)
 {
-    int V = 10;
-    int min_wt = 0;
-    int max_wt = 10;
-    if (argc > 1) V = atoi(argv[1]);
-    if (argc > 2) min_wt = atoi(argv[2]);
-    if (argc > 3) max_wt = atoi(argv[3]);
-    /* Non‑negative weights required */
-    if (min_wt < 0) {
-        fprintf(stderr, "Error: Dijkstra requires non‑negative weights\n");
+    if (argc < 4) {
+        printf("Usage: %s <V> <min_w> <max_w> [density=0.005]\n", argv[0]);
         return 1;
     }
-    Graph *g = load_graph(V, min_wt, max_wt);
+    int V = atoi(argv[1]);
+    int min_w = atoi(argv[2]);
+    int max_w = atoi(argv[3]);
+    double density = (argc > 4) ? atof(argv[4]) : 0.005;
+
+    /* Non-negative weights required */
+    if (min_w < 0) {
+        fprintf(stderr, "Error: Dijkstra requires non-negative weights\n");
+        return 1;
+    }
+
+    Graph *g = get_or_create_graph(V, max_w, min_w, density);
     if (!g) return 1;
+
     int *head, *to, *weight, *next;
     build_adjacency(g, &head, &to, &weight, &next);
-    int *dist = (int*)malloc(sizeof(int) * V);
+
+    int *dist = (int*)malloc(sizeof(int) * g->V);
     if (!dist) {
         fprintf(stderr, "Out of memory\n");
         free_graph(g);
         free(head); free(to); free(weight); free(next);
         return 1;
     }
-    dijkstra_serial(V, head, to, weight, next, 0, dist);
-    write_output("dijkstra", "serial", V, max_wt, min_wt, dist);
+
+    clock_t t0 = clock();
+    dijkstra_serial(g->V, head, to, weight, next, 0, dist);
+    clock_t t1 = clock();
+    double secs = (double)(t1 - t0) / CLOCKS_PER_SEC;
+    printf("[dijkstra_serial] time: %.6f s\n", secs);
+
+    save_distance_vector("dijkstra_serial", g->V, max_w, min_w, dist, g->V, false);
+
     free(dist);
     free(head); free(to); free(weight); free(next);
     free_graph(g);

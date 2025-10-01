@@ -1,53 +1,60 @@
 // Placeholder CUDA implementation of Johnson's algorithm.
-//
-// A full GPU implementation of Johnson's algorithm requires implementing
-// a parallel Bellman–Ford followed by many parallel Dijkstra or SSSP
-// kernels, which is beyond the scope of this skeleton.  This stub
-// simply loads the graph and reports that the CUDA version is not yet
-// implemented.
 
-#include <cstdio>
-#include "../../include/graph.h"
-#include <climits>
+#include "graph.h"
+#include "graph_io.h"
+#include <cuda_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+
+void johnson_cuda_stub(const Graph* g, int* dist_matrix) {
+    printf("johnson_cuda: not yet implemented.\n");
+    // Fill the distance matrix with INF
+    for (int i = 0; i < g->V * g->V; i++) {
+        dist_matrix[i] = INT_MAX;
+    }
+}
 
 int main(int argc, char **argv) {
     if (argc < 4) {
-        printf("Usage: %s V minWeight maxWeight\n", argv[0]);
+        printf("Usage: %s <V> <min_w> <max_w> [density=0.005]\n", argv[0]);
         return 1;
     }
     int V = atoi(argv[1]);
-    int minW = atoi(argv[2]);
-    int maxW = atoi(argv[3]);
-    Graph *g = load_graph(V, minW, maxW);
+    int min_w = atoi(argv[2]);
+    int max_w = atoi(argv[3]);
+    double density = (argc > 4) ? atof(argv[4]) : 0.005;
+
+    Graph *g = get_or_create_graph(V, max_w, min_w, density);
     if (!g) return 1;
-    printf("johnson_cuda: not yet implemented.\n");
-    // Write an empty V×V result (all INF) to the output file.  Each row
-    // contains V entries separated by spaces.
-    int total = V * V;
-    int *res = (int *)malloc(total * sizeof(int));
-    for (int i = 0; i < total; i++) res[i] = INT_MAX;
-    {
-        char filename[256];
-        snprintf(filename, sizeof(filename), "johnson_cuda__%d_%d_%d.txt", V, maxW, minW);
-        FILE *fp = fopen(filename, "w");
-        if (fp) {
-            for (int i = 0; i < V; i++) {
-                for (int j = 0; j < V; j++) {
-                    int d = res[i * V + j];
-                    if (d == INT_MAX) {
-                        fprintf(fp, "INF");
-                    } else {
-                        fprintf(fp, "%d", d);
-                    }
-                    if (j < V - 1) fprintf(fp, " ");
-                }
-                fprintf(fp, "\n");
-            }
-            fclose(fp);
-            printf("Output saved to %s\n", filename);
-        }
+
+    size_t bytes = (size_t)g->V * g->V * sizeof(int);
+    int* dist_matrix = (int*)malloc(bytes);
+    if (!dist_matrix) {
+        perror("Failed to allocate distance matrix");
+        free_graph(g);
+        return 1;
     }
-    free(res);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+    johnson_cuda_stub(g, dist_matrix);
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float ms = 0;
+    cudaEventElapsedTime(&ms, start, stop);
+    printf("[johnson_cuda] time: %.6f s\n", ms / 1000.0f);
+
+    // Save the dummy matrix (all INF)
+    save_distance_matrix("johnson_cuda", g->V, max_w, min_w, dist_matrix, false);
+
+    free(dist_matrix);
     free_graph(g);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
     return 0;
 }

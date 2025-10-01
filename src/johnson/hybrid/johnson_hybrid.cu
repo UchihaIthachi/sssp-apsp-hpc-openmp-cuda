@@ -1,52 +1,56 @@
 // Placeholder hybrid (CPU+GPU) implementation of Johnson's algorithm.
-//
-// A proper hybrid version would distribute the Dijkstra computations across
-// CPU threads and GPU kernels.  For the purposes of this skeleton, we
-// simply invoke the serial Johnson implementation on the host.
 
-#include <cstdio>
-#include "../../include/graph.h"
-#include <climits>
+#include "graph.h"
+#include "graph_io.h"
+#include <cuda_runtime.h>
+#include <omp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+
+void johnson_hybrid_stub(const Graph* g, int* dist_matrix) {
+    printf("johnson_hybrid: not yet implemented.\n");
+    // Fill the distance matrix with INF
+    for (int i = 0; i < g->V * g->V; i++) {
+        dist_matrix[i] = INT_MAX;
+    }
+}
 
 int main(int argc, char **argv) {
-    if (argc < 5) {
-        printf("Usage: %s V minWeight maxWeight gpuRatio [threads]\n", argv[0]);
+    if (argc < 4) {
+        printf("Usage: %s <V> <min_w> <max_w> [density=0.005] [threads=0]\n", argv[0]);
         return 1;
     }
     int V = atoi(argv[1]);
-    int minW = atoi(argv[2]);
-    int maxW = atoi(argv[3]);
-    // float gpu_ratio = atof(argv[4]);
-    (void)V; (void)minW; (void)maxW;
-    printf("johnson_hybrid: not yet implemented; falling back to serial.\n");
-    // For now produce an empty V×V result with INF values and write to file.
-    Graph *g = load_graph(V, minW, maxW);
-    if (!g) return 1;
-    int total = V * V;
-    int *res = (int *)malloc(total * sizeof(int));
-    for (int i = 0; i < total; i++) res[i] = INT_MAX;
-    {
-        char filename[256];
-        snprintf(filename, sizeof(filename), "johnson_hybrid__%d_%d_%d.txt", V, maxW, minW);
-        FILE *fp = fopen(filename, "w");
-        if (fp) {
-            for (int i = 0; i < V; i++) {
-                for (int j = 0; j < V; j++) {
-                    int d = res[i * V + j];
-                    if (d == INT_MAX) {
-                        fprintf(fp, "INF");
-                    } else {
-                        fprintf(fp, "%d", d);
-                    }
-                    if (j < V - 1) fprintf(fp, " ");
-                }
-                fprintf(fp, "\n");
-            }
-            fclose(fp);
-            printf("Output saved to %s\n", filename);
-        }
+    int min_w = atoi(argv[2]);
+    int max_w = atoi(argv[3]);
+    double density = (argc > 4) ? atof(argv[4]) : 0.005;
+    int numThreads = (argc > 5) ? atoi(argv[5]) : 0;
+
+    if (numThreads > 0) {
+        omp_set_num_threads(numThreads);
     }
-    free(res);
+
+    Graph *g = get_or_create_graph(V, max_w, min_w, density);
+    if (!g) return 1;
+
+    size_t bytes = (size_t)g->V * g->V * sizeof(int);
+    int* dist_matrix = (int*)malloc(bytes);
+    if (!dist_matrix) {
+        perror("Failed to allocate distance matrix");
+        free_graph(g);
+        return 1;
+    }
+
+    double t0 = omp_get_wtime();
+    johnson_hybrid_stub(g, dist_matrix);
+    double t1 = omp_get_wtime();
+    printf("[johnson_hybrid] time: %.6f s (threads=%d)\n", t1 - t0, (numThreads ? numThreads : omp_get_max_threads()));
+
+    // Save the dummy matrix (all INF)
+    save_distance_matrix("johnson_hybrid", g->V, max_w, min_w, dist_matrix, false);
+
+    free(dist_matrix);
     free_graph(g);
     return 0;
 }

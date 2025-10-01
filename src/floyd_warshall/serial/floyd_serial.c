@@ -1,76 +1,82 @@
 /*
  * floyd_serial.c
  *
- * Serial implementation of the Floyd–Warshall algorithm.  Computes
- * all–pairs shortest paths on a weighted directed graph.  The graph is
- * loaded from a file (or generated) using the common graph utilities.
- * Negative weights are allowed; negative cycles will produce undefined
- * results.  The resulting distance matrix is written to a file named
- * floyd_serial__V_maxWeight_minWeight.txt where each row of the matrix
- * appears on its own line, with entries separated by spaces.
+ * Serial implementation of the Floyd–Warshall algorithm. Computes
+ * all–pairs shortest paths on a weighted directed graph.
  */
 
-#include "../../include/graph.h"
+#include "graph.h"
+#include "graph_io.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <time.h>
 
-int main(int argc, char **argv) {
-    if (argc < 4) {
-        fprintf(stderr, "Usage: %s <V> <minWeight> <maxWeight>\n", argv[0]);
-        return 1;
-    }
-    int V = atoi(argv[1]);
-    int minW = atoi(argv[2]);
-    int maxW = atoi(argv[3]);
-    if (V <= 0 || maxW < minW) {
-        fprintf(stderr, "Invalid arguments.\n");
-        return 1;
-    }
-    Graph *g = load_graph(V, minW, maxW);
-    if (!g) return 1;
-    /* Allocate and initialize distance matrix */
-    const int INF = INT_MAX / 4;
-    int *dist = (int*)malloc(sizeof(int) * V * V);
-    if (!dist) { perror("malloc"); free_graph(g); return 1; }
+void floyd_warshall_serial(const Graph* g, int* dist) {
+    int V = g->V;
+    const int INF = INT_MAX / 2; // Prevent overflow
+
+    // Initialize distance matrix
     for (int i = 0; i < V; i++) {
         for (int j = 0; j < V; j++) {
-            if (i == j) dist[i * V + j] = 0;
-            else dist[i * V + j] = INF;
+            dist[i * V + j] = (i == j) ? 0 : INF;
         }
     }
-    /* Initialize edges */
-    for (int e = 0; e < g->E; e++) {
-        int u = g->edges[e].src;
-        int v = g->edges[e].dest;
-        int w = g->edges[e].weight;
-        if (w < dist[u * V + v]) dist[u * V + v] = w;
+
+    // Initialize with edge weights
+    for (int i = 0; i < g->E; i++) {
+        int u = g->edges[i].src;
+        int v = g->edges[i].dest;
+        int w = g->edges[i].weight;
+        if (w < dist[u * V + v]) {
+            dist[u * V + v] = w;
+        }
     }
-    /* Floyd–Warshall triple loop */
+
+    // Floyd-Warshall main loop
     for (int k = 0; k < V; k++) {
         for (int i = 0; i < V; i++) {
             for (int j = 0; j < V; j++) {
-                int viaK = dist[i * V + k] + dist[k * V + j];
-                if (viaK < dist[i * V + j]) dist[i * V + j] = viaK;
+                if (dist[i * V + k] != INF && dist[k * V + j] != INF) {
+                    int new_dist = dist[i * V + k] + dist[k * V + j];
+                    if (new_dist < dist[i * V + j]) {
+                        dist[i * V + j] = new_dist;
+                    }
+                }
             }
         }
     }
-    /* Write output */
-    char filename[256];
-    snprintf(filename, sizeof(filename), "floyd_serial__%d_%d_%d.txt", V, maxW, minW);
-    FILE *fp = fopen(filename, "w");
-    if (!fp) { perror("fopen"); free(dist); free_graph(g); return 1; }
-    for (int i = 0; i < V; i++) {
-        for (int j = 0; j < V; j++) {
-            int d = dist[i * V + j];
-            if (d > INT_MAX/8) fprintf(fp, "INF");
-            else fprintf(fp, "%d", d);
-            if (j < V - 1) fprintf(fp, " ");
-        }
-        fprintf(fp, "\n");
+}
+
+int main(int argc, char **argv) {
+    if (argc < 4) {
+        printf("Usage: %s <V> <min_w> <max_w> [density=0.005]\n", argv[0]);
+        return 1;
     }
-    fclose(fp);
-    free(dist);
+    int V = atoi(argv[1]);
+    int min_w = atoi(argv[2]);
+    int max_w = atoi(argv[3]);
+    double density = (argc > 4) ? atof(argv[4]) : 0.005;
+
+    Graph *g = get_or_create_graph(V, max_w, min_w, density);
+    if (!g) return 1;
+
+    int* dist_matrix = (int*)malloc(sizeof(int) * g->V * g->V);
+    if (!dist_matrix) {
+        perror("Failed to allocate distance matrix");
+        free_graph(g);
+        return 1;
+    }
+
+    clock_t t0 = clock();
+    floyd_warshall_serial(g, dist_matrix);
+    clock_t t1 = clock();
+    double secs = (double)(t1 - t0) / CLOCKS_PER_SEC;
+    printf("[floyd_serial] time: %.6f s\n", secs);
+
+    save_distance_matrix("floyd_serial", g->V, max_w, min_w, dist_matrix, false);
+
+    free(dist_matrix);
     free_graph(g);
     return 0;
 }

@@ -4,8 +4,9 @@
 #include <stdbool.h>
 #include <omp.h>
 
-#include "../../include/graph.h"
-#include "../../utils/graph_io.h"
+#include "graph.h"
+#include "graph_io.h"
+#include "graphGen.h"
 
 /* Build adjacency lists from an edge list (same as serial version) */
 static void build_adjacency(const Graph *g, int **head, int **to, int **weight, int **next)
@@ -62,7 +63,6 @@ static void dijkstra_openmp(int V, int *head, int *to, int *weight, int *next, i
         if (u == -1 || best == INT_MAX) break;
         visited[u] = true;
         /* Relax outgoing edges of u */
-        #pragma omp parallel for
         for (int e = head[u]; e != -1; e = next[e]) {
             int v = to[e];
             int w = weight[e];
@@ -82,32 +82,45 @@ static void dijkstra_openmp(int V, int *head, int *to, int *weight, int *next, i
 
 int main(int argc, char **argv)
 {
-    int V = 10;
-    int min_wt = 0;
-    int max_wt = 10;
-    int numThreads = 0;
-    if (argc > 1) V = atoi(argv[1]);
-    if (argc > 2) min_wt = atoi(argv[2]);
-    if (argc > 3) max_wt = atoi(argv[3]);
-    if (argc > 4) numThreads = atoi(argv[4]);
-    if (min_wt < 0) {
-        fprintf(stderr, "Error: Dijkstra requires non‑negative weights\n");
+    if (argc < 4) {
+        printf("Usage: %s <V> <min_w> <max_w> [density=0.005] [threads=0]\n", argv[0]);
         return 1;
     }
-    if (numThreads > 0) omp_set_num_threads(numThreads);
-    Graph *g = load_graph(V, min_wt, max_wt);
+    int V = atoi(argv[1]);
+    int min_w = atoi(argv[2]);
+    int max_w = atoi(argv[3]);
+    double density = (argc > 4) ? atof(argv[4]) : 0.005;
+    int numThreads = (argc > 5) ? atoi(argv[5]) : 0;
+
+    if (min_w < 0) {
+        fprintf(stderr, "Error: Dijkstra requires non-negative weights\n");
+        return 1;
+    }
+    if (numThreads > 0) {
+        omp_set_num_threads(numThreads);
+    }
+
+    Graph *g = get_or_create_graph(V, max_w, min_w, density);
     if (!g) return 1;
+
     int *head, *to, *weight, *next;
     build_adjacency(g, &head, &to, &weight, &next);
-    int *dist = (int*)malloc(sizeof(int) * V);
+
+    int *dist = (int*)malloc(sizeof(int) * g->V);
     if (!dist) {
         fprintf(stderr, "Out of memory\n");
         free_graph(g);
         free(head); free(to); free(weight); free(next);
         return 1;
     }
-    dijkstra_openmp(V, head, to, weight, next, 0, dist);
-    write_output("dijkstra", "openmp", V, max_wt, min_wt, dist);
+
+    double t0 = omp_get_wtime();
+    dijkstra_openmp(g->V, head, to, weight, next, 0, dist);
+    double t1 = omp_get_wtime();
+    printf("[dijkstra_openmp] time: %.6f s (threads=%d)\n", t1 - t0, (numThreads ? numThreads : omp_get_max_threads()));
+
+    save_distance_vector("dijkstra_openmp", g->V, max_w, min_w, dist, g->V, false);
+
     free(dist);
     free(head); free(to); free(weight); free(next);
     free_graph(g);

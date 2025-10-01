@@ -1,201 +1,163 @@
-// Serial implementation of Johnson's algorithm for all‑pairs shortest paths.
-//
-// This program reweights a possibly negatively‑weighted graph using
-// Bellman–Ford and then runs Dijkstra from each source.  It writes the
-// resulting distance matrix to a file using the same naming convention as
-// other algorithms (johnson_serial__V_maxWeight_minWeight.txt).  The graph
-// format and utilities are defined in utils/graph_gen.c and utils/graph_io.c.
+// Serial implementation of Johnson's algorithm for all-pairs shortest paths.
 
+#include "graph.h"
+#include "graph_io.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
-#include "../../include/graph.h"
+#include <stdbool.h>
+#include <time.h>
 
-// Simple Bellman–Ford for reweighting.  Returns 0 on success and
-// populates the h[] potentials.  Returns -1 on negative cycle.
-static int bellman_ford(const Graph *g, int *h) {
+// Simple Bellman-Ford for reweighting. Returns 0 on success, -1 on negative cycle.
+static int bellman_ford_reweight(const Graph *g, int *h) {
     int V = g->V;
-    int E = g->E;
-    // distances from new source q to all vertices
-    for (int i = 0; i < V; i++) h[i] = 0;
-    // Relax edges V-1 times
-    for (int iter = 0; iter < V - 1; iter++) {
-        int updated = 0;
-        for (int e = 0; e < E; e++) {
-            int u = g->edges[e].src;
-            int v = g->edges[e].dest;
-            int w = g->edges[e].weight;
+    for (int i = 0; i < V; i++) h[i] = INT_MAX;
+    h[0] = 0; // Assuming source is 0 for the augmented graph
+
+    for (int i = 0; i < V - 1; i++) {
+        for (int j = 0; j < g->E; j++) {
+            int u = g->edges[j].src;
+            int v = g->edges[j].dest;
+            int w = g->edges[j].weight;
             if (h[u] != INT_MAX && h[u] + w < h[v]) {
                 h[v] = h[u] + w;
-                updated = 1;
             }
         }
-        if (!updated) break;
     }
-    // Check for negative cycles
-    for (int e = 0; e < E; e++) {
-        int u = g->edges[e].src;
-        int v = g->edges[e].dest;
-        int w = g->edges[e].weight;
+
+    for (int j = 0; j < g->E; j++) {
+        int u = g->edges[j].src;
+        int v = g->edges[j].dest;
+        int w = g->edges[j].weight;
         if (h[u] != INT_MAX && h[u] + w < h[v]) {
-            return -1;
+            return -1; // Negative cycle detected
         }
     }
     return 0;
 }
 
-// Simple adjacency list structure for Dijkstra
 typedef struct AdjNode {
     int to;
     int w;
     struct AdjNode *next;
 } AdjNode;
 
-static AdjNode **build_adj(const Graph *g) {
-    int V = g->V;
-    AdjNode **adj = (AdjNode **)calloc(V, sizeof(AdjNode *));
+static AdjNode** build_adj_list(const Graph *g) {
+    AdjNode **adj = calloc(g->V, sizeof(AdjNode*));
     for (int i = 0; i < g->E; i++) {
-        int u = g->edges[i].src;
-        int v = g->edges[i].dest;
-        int w = g->edges[i].weight;
-        AdjNode *node = (AdjNode *)malloc(sizeof(AdjNode));
-        node->to = v;
-        node->w = w;
-        node->next = adj[u];
-        adj[u] = node;
+        AdjNode *node = malloc(sizeof(AdjNode));
+        node->to = g->edges[i].dest;
+        node->w = g->edges[i].weight;
+        node->next = adj[g->edges[i].src];
+        adj[g->edges[i].src] = node;
     }
     return adj;
 }
 
-static void free_adj(int V, AdjNode **adj) {
+static void free_adj_list(AdjNode **adj, int V) {
     for (int i = 0; i < V; i++) {
-        AdjNode *cur = adj[i];
-        while (cur) {
-            AdjNode *tmp = cur;
-            cur = cur->next;
+        AdjNode *curr = adj[i];
+        while (curr) {
+            AdjNode *tmp = curr;
+            curr = curr->next;
             free(tmp);
         }
     }
     free(adj);
 }
 
-// Simple Dijkstra using an array; O(V^2) for clarity.  Returns
-// pointer to distance array of length V.
-static int *dijkstra(int V, AdjNode **adj, int src) {
-    int *dist = (int *)malloc(V * sizeof(int));
-    char *visited = (char *)calloc(V, sizeof(char));
+// Simple Dijkstra using an array (O(V^2))
+static void dijkstra(int V, AdjNode **adj, int src, int *dist) {
+    bool *visited = calloc(V, sizeof(bool));
     for (int i = 0; i < V; i++) dist[i] = INT_MAX;
     dist[src] = 0;
-    for (int iter = 0; iter < V; iter++) {
+
+    for (int i = 0; i < V; i++) {
         int u = -1;
-        int best = INT_MAX;
-        for (int i = 0; i < V; i++) {
-            if (!visited[i] && dist[i] < best) {
-                best = dist[i];
-                u = i;
+        int min_dist = INT_MAX;
+        for (int j = 0; j < V; j++) {
+            if (!visited[j] && dist[j] < min_dist) {
+                min_dist = dist[j];
+                u = j;
             }
         }
+
         if (u == -1) break;
-        visited[u] = 1;
+        visited[u] = true;
+
         for (AdjNode *edge = adj[u]; edge; edge = edge->next) {
-            int v = edge->to;
-            int w = edge->w;
-            if (dist[u] != INT_MAX && dist[u] + w < dist[v]) {
-                dist[v] = dist[u] + w;
+            if (dist[u] != INT_MAX && dist[u] + edge->w < dist[edge->to]) {
+                dist[edge->to] = dist[u] + edge->w;
             }
         }
     }
     free(visited);
-    return dist;
+}
+
+void johnson_serial(const Graph* g, int* dist_matrix, bool* has_neg_cycle) {
+    int V = g->V;
+    int* h = malloc(V * sizeof(int));
+    if (bellman_ford_reweight(g, h) != 0) {
+        *has_neg_cycle = true;
+        free(h);
+        return;
+    }
+    *has_neg_cycle = false;
+
+    Graph reweighted_g = *g;
+    reweighted_g.edges = malloc(g->E * sizeof(Edge));
+    for (int i = 0; i < g->E; i++) {
+        reweighted_g.edges[i] = g->edges[i];
+        int u = g->edges[i].src;
+        int v = g->edges[i].dest;
+        reweighted_g.edges[i].weight += h[u] - h[v];
+    }
+
+    AdjNode** adj = build_adj_list(&reweighted_g);
+    
+    int* temp_dist = malloc(V * sizeof(int));
+    for (int i = 0; i < V; i++) {
+        dijkstra(V, adj, i, temp_dist);
+        for (int j = 0; j < V; j++) {
+            if (temp_dist[j] != INT_MAX) {
+                dist_matrix[i * V + j] = temp_dist[j] - h[i] + h[j];
+            } else {
+                dist_matrix[i * V + j] = INT_MAX;
+            }
+        }
+    }
+
+    free(temp_dist);
+    free_adj_list(adj, V);
+    free(reweighted_g.edges);
+    free(h);
 }
 
 int main(int argc, char **argv) {
     if (argc < 4) {
-        fprintf(stderr, "Usage: %s V minWeight maxWeight\n", argv[0]);
+        printf("Usage: %s <V> <min_w> <max_w> [density=0.005]\n", argv[0]);
         return 1;
     }
     int V = atoi(argv[1]);
-    int minW = atoi(argv[2]);
-    int maxW = atoi(argv[3]);
-    Graph *g = load_graph(V, minW, maxW);
+    int min_w = atoi(argv[2]);
+    int max_w = atoi(argv[3]);
+    double density = (argc > 4) ? atof(argv[4]) : 0.005;
+
+    Graph *g = get_or_create_graph(V, max_w, min_w, density);
     if (!g) return 1;
-    int *h = (int *)malloc(g->V * sizeof(int));
-    // Bellman–Ford reweighting
-    if (bellman_ford(g, h) != 0) {
-        printf("Negative weight cycle detected.\n");
-        // Write a simple message to the output file indicating the cycle
-        {
-            char filename[256];
-            snprintf(filename, sizeof(filename), "johnson_serial__%d_%d_%d.txt", V, maxW, minW);
-            FILE *fp = fopen(filename, "w");
-            if (fp) {
-                fprintf(fp, "Negative weight cycle detected.\n");
-                fclose(fp);
-            }
-        }
-        free_graph(g);
-        free(h);
-        return 0;
-    }
-    // Reweight edges in the graph in place
-    for (int i = 0; i < g->E; i++) {
-        int u = g->edges[i].src;
-        int v = g->edges[i].dest;
-        int w = g->edges[i].weight;
-        long newW = (long)w + h[u] - h[v];
-        if (newW > INT_MAX) newW = INT_MAX;
-        if (newW < INT_MIN) newW = INT_MIN;
-        g->edges[i].weight = (int)newW;
-    }
-    // Build adjacency for reweighted graph
-    AdjNode **adj = build_adj(g);
-    int Vcount = g->V;
-    // Result matrix flattened to V*V vector
-    int total = Vcount * Vcount;
-    int *res = (int *)malloc(total * sizeof(int));
-    for (int s = 0; s < Vcount; s++) {
-        int *dist = dijkstra(Vcount, adj, s);
-        for (int v = 0; v < Vcount; v++) {
-            long d = dist[v];
-            if (d != INT_MAX) {
-                long val = d - h[s] + h[v];
-                if (val > INT_MAX) val = INT_MAX;
-                if (val < INT_MIN) val = INT_MIN;
-                res[s * Vcount + v] = (int)val;
-            } else {
-                res[s * Vcount + v] = INT_MAX;
-            }
-        }
-        free(dist);
-    }
-    // Write the full distance matrix to an output file.  Each row of V
-    // integers (or INF) is written on its own line, separated by spaces.
-    {
-        char filename[256];
-        snprintf(filename, sizeof(filename), "johnson_serial__%d_%d_%d.txt", Vcount, maxW, minW);
-        FILE *fp = fopen(filename, "w");
-        if (!fp) {
-            perror("fopen");
-        } else {
-            for (int i = 0; i < Vcount; i++) {
-                for (int j = 0; j < Vcount; j++) {
-                    int d = res[i * Vcount + j];
-                    if (d == INT_MAX) {
-                        fprintf(fp, "INF");
-                    } else {
-                        fprintf(fp, "%d", d);
-                    }
-                    if (j < Vcount - 1) fprintf(fp, " ");
-                }
-                fprintf(fp, "\n");
-            }
-            fclose(fp);
-            printf("Output saved to %s\n", filename);
-        }
-    }
-    free(res);
-    free_adj(Vcount, adj);
+
+    int* dist_matrix = malloc(sizeof(int) * g->V * g->V);
+    bool has_neg_cycle = false;
+
+    clock_t t0 = clock();
+    johnson_serial(g, dist_matrix, &has_neg_cycle);
+    clock_t t1 = clock();
+    double secs = (double)(t1 - t0) / CLOCKS_PER_SEC;
+    printf("[johnson_serial] time: %.6f s\n", secs);
+
+    save_distance_matrix("johnson_serial", g->V, max_w, min_w, dist_matrix, has_neg_cycle);
+
+    free(dist_matrix);
     free_graph(g);
-    free(h);
     return 0;
 }

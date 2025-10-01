@@ -1,22 +1,21 @@
 #ifndef GRAPH_IO_H
 #define GRAPH_IO_H
 
-#include "../include/graph.h"
+#include "graph.h"
+#include <stdbool.h>
 
-/*
- * Loads a graph with the given parameters.  If the file does not exist,
- * generate_graph_file() from graph_gen.c will be called.  Returns a pointer
- * to a Graph structure or NULL on failure.
- */
-Graph* load_or_generate_graph(int V, int minWeight, int maxWeight);
+// Attempts to load a graph from a standard file path. If the file doesn't
+// exist, it generates a new graph, saves it, and then loads it.
+Graph* get_or_create_graph(int V, int max_w, int min_w, double density);
 
-/*
- * Writes the distance array (length V) to a file named
- * "<algorithm>_<variant>__V_maxWeight_minWeight.txt" in the current working
- * directory.  Returns 0 on success or -1 on failure.
- */
-int write_distances(const char* algorithm, const char* variant,
-                    int V, int maxWeight, int minWeight,
-                    const int* distance);
+// Frees the memory allocated for the graph structure.
+void free_graph(Graph* g);
+
+// Saves a 1D distance vector (for SSSP algorithms) to a file.
+void save_distance_vector(const char* variant, int V, int max_w, int min_w, const int* dist, int num_nodes, bool has_neg_cycle);
+
+// Saves a 2D distance matrix (for APSP algorithms) to a file.
+// If has_neg_cycle is true, it writes a message instead of the matrix.
+void save_distance_matrix(const char* variant, int V, int max_w, int min_w, const int* dist_matrix, bool has_neg_cycle);
 
 #endif /* GRAPH_IO_H */

@@ -3,7 +3,7 @@
 #include <limits.h>
 #include <time.h>
 #include "graph.h"
-#include "graphGen.h"
+#include "graph_io.h"
 
 static inline int relax_add(int a, int b) {
     if (a == INT_MAX) return INT_MAX;

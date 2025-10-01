@@ -3,7 +3,7 @@
 #include <climits>
 #include <cuda_runtime.h>
 #include "graph.h"
-#include "graphGen.h"
+#include "graph_io.h"
 
 __device__ __forceinline__ int relax_add_dev(int a, int b) {
     if (a == INT_MAX) return INT_MAX;
