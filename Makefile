@@ -4,13 +4,7 @@
 
 # Compilers
 CC := gcc
-# Find nvcc, checking the default Colab path as a fallback
 NVCC := $(shell command -v nvcc 2>/dev/null)
-ifeq ($(NVCC),)
-    ifneq ($(wildcard /usr/local/cuda/bin/nvcc),)
-        NVCC := /usr/local/cuda/bin/nvcc
-    endif
-endif
 
 # Directories
 BIN_DIR := bin
@@ -19,12 +13,15 @@ INCLUDE_DIR := include
 UTILS_DIR := utils
 
 # Flags
-CFLAGS_BASE := -O2 -Wall
+CFLAGS_BASE := -O3 -Wall -march=native
 CFLAGS := $(CFLAGS_BASE) -I$(INCLUDE_DIR) -I$(UTILS_DIR)
 OMPFLAGS := -fopenmp
 LDFLAGS := -lm
-NVCCFLAGS_BASE := -O2
-NVCCFLAGS := $(NVCCFLAGS_BASE) -I$(INCLUDE_DIR) -I$(UTILS_DIR)
+
+# GPU_ARCH can be passed from the command line, e.g., make all GPU_ARCH=sm_86
+# Defaults to sm_75 for Colab T4 if not provided.
+GPU_ARCH ?= sm_75
+NVCCFLAGS := -O3 -I$(INCLUDE_DIR) -I$(UTILS_DIR)
 
 # --- Utility Objects ---
 UTIL_SRCS := $(wildcard $(UTILS_DIR)/*.c)
@@ -40,36 +37,32 @@ OMP_TARGETS := $(patsubst %.c,$(BIN_DIR)/%,$(notdir $(OMP_SRCS)))
 TARGETS := $(SERIAL_TARGETS) $(OMP_TARGETS)
 
 # --- CUDA Target Handling ---
-ifeq ($(NVCC),)
-    $(info nvcc not found. CUDA targets will be skipped.)
+# Conditionally compile CUDA targets based on DISABLE_CUDA flag
+ifeq ($(DISABLE_CUDA),1)
+  $(info Skipping CUDA targets: nvcc not found)
 else
-    $(info nvcc found. Adding CUDA targets.)
+  # Only proceed if nvcc is found
+  ifneq ($(NVCC),)
+    $(info nvcc found. Adding CUDA targets for $(GPU_ARCH))
+    NVCCFLAGS += -gencode arch=compute_75,code=$(GPU_ARCH)
+
     CUDA_SRCS := $(wildcard $(SRC_DIR)/*/cuda/*.cu)
     HYBRID_SRCS := $(wildcard $(SRC_DIR)/*/hybrid/*.cu)
 
     CUDA_TARGETS := $(patsubst %.cu,$(BIN_DIR)/%,$(notdir $(CUDA_SRCS)))
     HYBRID_TARGETS := $(patsubst %.cu,$(BIN_DIR)/%,$(notdir $(HYBRID_SRCS)))
     TARGETS += $(CUDA_TARGETS) $(HYBRID_TARGETS)
-
-    # Auto-detect GPU architecture
-    ARCH_DETECT := $(shell $(NVCC) --query-gpu-info --short 2>/dev/null | grep "SM" | head -n 1 | sed 's/SM_//' || echo "")
-    ifeq ($(ARCH_DETECT),)
-        ARCH := 60 # Fallback architecture
-    else
-        ARCH := $(ARCH_DETECT)
-    endif
-    ARCH := $(strip $(ARCH))
-    NVCCFLAGS += -gencode arch=compute_$(ARCH),code=sm_$(ARCH)
+  endif
 endif
 
 # --- Main Rules ---
 all: $(TARGETS)
-	echo "Build process initiated. See output above for details."
+	@echo "Build process complete. Executables are in $(BIN_DIR)/"
 
 clean:
-	echo "Cleaning up..."
-	rm -rf $(BIN_DIR) $(UTILS_DIR)/*.o
-	echo "Done."
+	@echo "Cleaning up..."
+	@rm -rf $(BIN_DIR) $(UTILS_DIR)/*.o
+	@echo "Done."
 
 # --- Rule Generation ---
 
@@ -100,7 +93,12 @@ endef
 $(foreach src,$(SERIAL_SRCS),$(call C_RULE,$(src)))
 $(foreach src,$(OMP_SRCS),$(call C_RULE,$(src),$(OMPFLAGS)))
 
-ifneq ($(NVCC),)
+# Generate CUDA rules only if they are enabled
+ifeq ($(DISABLE_CUDA),1)
+# Do nothing
+else
+  ifneq ($(NVCC),)
     $(foreach src,$(CUDA_SRCS),$(call CUDA_RULE,$(src)))
     $(foreach src,$(HYBRID_SRCS),$(call CUDA_RULE,$(src),-Xcompiler "$(OMPFLAGS)"))
+  endif
 endif

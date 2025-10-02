@@ -1,8 +1,9 @@
 /*
  * floyd_openmp.c
  *
- * OpenMP implementation of the Floyd–Warshall algorithm. Parallelizes
- * the inner two loops (i,j) for each intermediate vertex k.
+ * Optimized OpenMP implementation of the Floyd–Warshall algorithm.
+ * Uses a single parallel region to reduce thread overhead and improve
+ * cache performance.
  */
 
 #include "graph.h"
@@ -10,39 +11,52 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <omp.h>
 
-void floyd_warshall_openmp(const Graph* g, int* dist) {
-    int V = g->V;
+void floyd_warshall_openmp(const Graph* g, int* __restrict dist) {
+    const int V = g->V;
     const int INF = INT_MAX / 2;
 
-    #pragma omp parallel for collapse(2)
+    // init matrix
+    #pragma omp parallel for collapse(2) schedule(static)
     for (int i = 0; i < V; i++) {
         for (int j = 0; j < V; j++) {
-            dist[i * V + j] = (i == j) ? 0 : INF;
+            dist[i*V + j] = (i == j) ? 0 : INF;
         }
     }
 
-    for (int i = 0; i < g->E; i++) {
-        int u = g->edges[i].src;
-        int v = g->edges[i].dest;
-        int w = g->edges[i].weight;
-        if (w < dist[u * V + v]) {
-            dist[u * V + v] = w;
-        }
+    // seed edges (sequential is fine; parallelizing needs atomic min)
+    for (int e = 0; e < g->E; e++) {
+        int u = g->edges[e].src;
+        int v = g->edges[e].dest;
+        int w = g->edges[e].weight;
+        if (w < dist[u*V + v]) dist[u*V + v] = w;
     }
 
-    for (int k = 0; k < V; k++) {
-        #pragma omp parallel for collapse(2)
-        for (int i = 0; i < V; i++) {
-            for (int j = 0; j < V; j++) {
-                if (dist[i * V + k] != INF && dist[k * V + j] != INF) {
-                    int new_dist = dist[i * V + k] + dist[k * V + j];
-                    if (new_dist < dist[i * V + j]) {
-                        dist[i * V + j] = new_dist;
-                    }
+    // one team reused across all k
+    #pragma omp parallel
+    {
+        for (int k = 0; k < V; k++) {
+            const int * __restrict row_k = &dist[k*V];
+
+            #pragma omp for schedule(static)
+            for (int i = 0; i < V; i++) {
+                int * __restrict row_i = &dist[i*V];
+                const int dik = row_i[k];
+                if (dik == INF) continue;  // no path i->k, skip whole row
+
+                // Vectorizable inner loop
+                #pragma omp simd
+                for (int j = 0; j < V; j++) {
+                    int dkj = row_k[j];
+                    // both INF check folded into arithmetic: avoid overflow
+                    int via = (dkj >= INF - dik) ? INF : (dik + dkj);
+                    if (via < row_i[j]) row_i[j] = via;
                 }
             }
+            // Barrier to ensure all threads finish an iteration `k` before any start `k+1`
+            #pragma omp barrier
         }
     }
 }
@@ -77,7 +91,15 @@ int main(int argc, char **argv) {
     double t1 = omp_get_wtime();
     printf("[floyd_openmp] time: %.6f s (threads=%d)\n", t1 - t0, (numThreads ? numThreads : omp_get_max_threads()));
 
-    save_distance_matrix("floyd_openmp", g->V, max_w, min_w, dist_matrix, false);
+    bool has_neg_cycle = false;
+    for (int i = 0; i < V; ++i) {
+        if (dist_matrix[i*V + i] < 0) {
+            has_neg_cycle = true;
+            break;
+        }
+    }
+
+    save_distance_matrix("floyd_openmp", g->V, max_w, min_w, dist_matrix, has_neg_cycle);
 
     free(dist_matrix);
     free_graph(g);

@@ -17,6 +17,12 @@ static void build_adjacency(const Graph *g, int **head, int **to, int **weight, 
     *to = (int*)malloc(sizeof(int) * E);
     *weight = (int*)malloc(sizeof(int) * E);
     *next = (int*)malloc(sizeof(int) * E);
+    if (!*head || !*to || !*weight || !*next) {
+        fprintf(stderr, "Adjacency list OOM\n");
+        free(*head); free(*to); free(*weight); free(*next);
+        *head = NULL; // Signal error
+        return;
+    }
     for (int i = 0; i < V; i++) (*head)[i] = -1;
     for (int i = 0; i < E; i++) {
         int u = g->edges[i].src;
@@ -29,56 +35,72 @@ static void build_adjacency(const Graph *g, int **head, int **to, int **weight, 
     }
 }
 
-static void dijkstra_openmp(int V, int *head, int *to, int *weight, int *next, int src, int *dist)
+static inline int safe_add(int a, int b) {
+    if (a == INT_MAX) return INT_MAX;
+    long long s = (long long)a + (long long)b;
+    if (s > INT_MAX) return INT_MAX;
+    return (int)s; // non-negative weights assumed
+}
+
+static void dijkstra_openmp(int V, int * __restrict head,
+                            int * __restrict to,
+                            int * __restrict weight,
+                            int * __restrict next,
+                            int src, int * __restrict dist)
 {
-    bool *visited = (bool*)malloc(sizeof(bool) * V);
-    for (int i = 0; i < V; i++) {
-        dist[i] = INT_MAX;
-        visited[i] = false;
-    }
-    dist[src] = 0;
-    for (int iter = 0; iter < V; iter++) {
-        int u = -1;
-        int best = INT_MAX;
-        /* Parallel search for unvisited vertex with minimum distance */
-        #pragma omp parallel
-        {
-            int local_u = -1;
-            int local_best = INT_MAX;
-            #pragma omp for nowait
-            for (int i = 0; i < V; i++) {
-                if (!visited[i] && dist[i] < local_best) {
-                    local_best = dist[i];
-                    local_u = i;
+    bool *visited = (bool*)malloc(sizeof(bool)*V);
+    for (int i=0;i<V;i++){ dist[i]=INT_MAX; visited[i]=false; }
+    dist[src]=0;
+
+    bool stop = false;
+    int best;
+
+    #pragma omp parallel shared(stop, best, dist, visited, head, to, weight, next)
+    {
+        for (int iter=0; iter<V && !stop; ++iter) {
+            #pragma omp single
+            best = INT_MAX;
+
+            #pragma omp for reduction(min:best)
+            for (int i=0; i<V; ++i) {
+                if (!visited[i] && dist[i] < best) {
+                    best = dist[i];
                 }
             }
-            #pragma omp critical
+
+            #pragma omp single
             {
-                if (local_u != -1 && local_best < best) {
-                    best = local_best;
-                    u = local_u;
-                }
-            }
-        }
-        if (u == -1 || best == INT_MAX) break;
-        visited[u] = true;
-        /* Relax outgoing edges of u */
-        for (int e = head[u]; e != -1; e = next[e]) {
-            int v = to[e];
-            int w = weight[e];
-            int du = dist[u];
-            if (du != INT_MAX && du + w < dist[v]) {
-                #pragma omp critical
-                {
-                    if (du + w < dist[v]) {
-                        dist[v] = du + w;
+                if (best == INT_MAX) {
+                    stop = true;
+                } else {
+                    int u = -1;
+                    for (int i=0; i<V; ++i) {
+                        if (!visited[i] && dist[i] == best) {
+                            u = i;
+                            break;
+                        }
+                    }
+                    if (u != -1) {
+                        visited[u] = true;
+                        for (int e = head[u]; e != -1; e = next[e]) {
+                            int v = to[e];
+                            int w = weight[e];
+                            if (dist[u] != INT_MAX) {
+                                int new_dist = safe_add(dist[u], w);
+                                if (new_dist < dist[v]) {
+                                    dist[v] = new_dist;
+                                }
+                            }
+                        }
                     }
                 }
             }
+            #pragma omp barrier
         }
     }
     free(visited);
 }
+
 
 int main(int argc, char **argv)
 {
@@ -105,6 +127,7 @@ int main(int argc, char **argv)
 
     int *head, *to, *weight, *next;
     build_adjacency(g, &head, &to, &weight, &next);
+    if (!head) { free_graph(g); return 1; }
 
     int *dist = (int*)malloc(sizeof(int) * g->V);
     if (!dist) {
