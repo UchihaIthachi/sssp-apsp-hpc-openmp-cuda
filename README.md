@@ -69,13 +69,14 @@ Makefile                      # 🔧 Customizable build logic (auto-detects CUDA
 
 ## ⚡ Quickstart on Google Colab
 
-| Notebook                  | Link                                                                                                                                                                                                    |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup (build, env detect) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/notebooks/00_setup_build.ipynb) |
-| Bellman–Ford SSSP         | _(Coming soon)_                                                                                                                                                                                         |
-| Dijkstra SSSP             | _(Coming soon)_                                                                                                                                                                                         |
-| Floyd–Warshall APSP       | _(Coming soon)_                                                                                                                                                                                         |
-| Johnson's APSP            | _(Coming soon)_                                                                                                                                                                                         |
+| Notebook                  | Link                                                                                                                                                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup (build, env detect) | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/notebooks/00_setup_build.ipynb)         |
+| Bellman–Ford SSSP         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/notebooks/01_bellman_ford_sssp.ipynb)   |
+| Dijkstra SSSP             | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/notebooks/02_dijkstra_sssp.ipynb)       |
+| Floyd–Warshall APSP       | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/notebooks/03_floyd_warshall_apsp.ipynb) |
+| Johnson's APSP            | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/notebooks/04_johnson_apsp.ipynb)        |
+| Compare & Rollup          | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/notebooks/05_compare_rollup.ipynb)      |
 
 ---
 
