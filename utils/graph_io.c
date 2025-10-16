@@ -12,7 +12,16 @@ static bool file_exists(const char *filename) {
     return (stat(filename, &buffer) == 0);
 }
 
+// Helper to create a directory if it doesn't exist
+static void ensure_dir_exists(const char *dir) {
+    struct stat st = {0};
+    if (stat(dir, &st) == -1) {
+        mkdir(dir, 0700);
+    }
+}
+
 Graph* get_or_create_graph(int V, int max_w, int min_w, double density) {
+    ensure_dir_exists("data");
     char filename[256];
     sprintf(filename, "data/graph_%d_%d_%d_%.3f.txt", V, max_w, min_w, density);
 
