@@ -1,7 +1,3 @@
-<a href="https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/SSSP-APSP-HPC-Analysis.ipynb" target="_blank" rel="noopener noreferrer">
-  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-</a>
-
 # SSSP/APSP HPC: A Comparative Analysis
 
 This project provides and analyzes different implementations of single-source shortest path (SSSP) and all-pairs shortest path (APSP) algorithms, showcasing a range of high-performance computing (HPC) techniques.
@@ -26,9 +22,28 @@ Each algorithm is implemented in several variants where applicable:
 
 ## Quickstart: Performance Analysis with Jupyter
 
-The best way to explore this project is through the interactive Jupyter Notebook. It will guide you through building the code, running benchmarks, and visualizing the performance results for all algorithms.
+The analysis is split into several Jupyter Notebooks, located in the `notebooks/` directory.
 
-**>> [Open the Performance Analysis Notebook](SSSP-APSP-HPC-Analysis.ipynb) <<**
+**1. Start Here: `notebooks/00_setup_build.ipynb`**
+
+<a href="https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/notebooks/00_setup_build.ipynb" target="_blank" rel="noopener noreferrer">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+
+Run this notebook first to clone the repository, install dependencies, and compile all the executables.
+
+**2. Per-Algorithm Benchmarks**
+
+Once the setup is complete, you can run the individual benchmark notebooks:
+
+- `notebooks/01_bellman_ford_sssp.ipynb`
+- `notebooks/02_dijkstra_sssp.ipynb`
+- `notebooks/03_floyd_warshall_apsp.ipynb`
+- `notebooks/04_johnson_apsp.ipynb`
+
+**3. Combined Analysis**
+
+- `notebooks/05_compare_rollup.ipynb`: This notebook loads the results from the other notebooks and creates combined comparison plots.
 
 ## Manual Build and Run
 
@@ -50,61 +65,3 @@ You will need GCC (with OpenMP support) to build the CPU-based variants. For the
   ```bash
   make clean
   ```
-
-### Run
-
-The executables will automatically generate graph data files in the `data/` directory if they don't already exist. Output files will be placed in the project root.
-
-Here are some examples of how to run each variant.
-
-#### SSSP Algorithms
-
-- **BF_serial / dijkstra_serial:**
-  ```bash
-  # Usage: <exe> <V> <min_w> <max_w> [density]
-  ./bin/BF_serial 5000 -30 30 0.001
-  ```
-- **BF_openmp / dijkstra_openmp:**
-  ```bash
-  # Usage: <exe> <V> <min_w> <max_w> [density] [threads]
-  ./bin/BF_openmp 5000 -30 30 0.001 8
-  ```
-- **BF_cuda / dijkstra_cuda:**
-  ```bash
-  # Usage: <exe> <V> <min_w> <max_w> [density]
-  ./bin/BF_cuda 5000 -30 30 0.001
-  ```
-- **BF_hybrid / dijkstra_hybrid:**
-  ```bash
-  # Usage: <exe> <V> <min_w> <max_w> <split_ratio> [density] [threads]
-  ./bin/BF_hybrid 5000 -30 30 0.6 0.001 8
-  ```
-
-#### APSP Algorithms
-
-- **floyd_serial / johnson_serial:**
-  ```bash
-  # Usage: <exe> <V> <min_w> <max_w> [density]
-  ./bin/floyd_serial 1000 -10 50 0.01
-  ```
-- **floyd_openmp / johnson_openmp:**
-  ```bash
-  # Usage: <exe> <V> <min_w> <max_w> [density] [threads]
-  ./bin/johnson_openmp 1000 -10 50 0.01 8
-  ```
-- **floyd_cuda / johnson_cuda (stubs):**
-  ```bash
-  # Usage: <exe> <V> <min_w> <max_w> [density]
-  ./bin/floyd_cuda 1000 -10 50 0.01
-  ```
-
-## Validate Results
-
-After running the benchmarks, you can compare the output of the parallel SSSP implementations against the serial baseline to ensure correctness. The Root Mean Square Error (RMSE) should be close to 0.
-
-_Note: This script is for SSSP algorithms that produce distance vectors. APSP algorithms produce distance matrices and must be compared differently._
-
-```bash
-# Example for a graph with 5000 vertices
-python3 scripts/compare_rmse.py output_BF_serial__5000_30_-30.txt output_BF_openmp__5000_30_-30.txt
-```
