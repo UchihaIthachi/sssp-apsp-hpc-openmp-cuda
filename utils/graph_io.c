@@ -70,7 +70,7 @@ void free_graph(Graph* g) {
 
 void save_distance_vector(const char* variant, int V, int max_w, int min_w, const int* dist, int num_nodes, bool has_neg_cycle) {
     char filename[256];
-    sprintf(filename, "output_%s__%d_%d_%d.txt", variant, V, max_w, min_w);
+    sprintf(filename, "data/output_%s__%d_%d_%d.txt", variant, V, max_w, min_w);
     FILE* fp = fopen(filename, "w");
     if (!fp) {
         perror("Failed to open output file for distance vector");
@@ -93,7 +93,7 @@ void save_distance_vector(const char* variant, int V, int max_w, int min_w, cons
 
 void save_distance_matrix(const char* variant, int V, int max_w, int min_w, const int* dist_matrix, bool has_neg_cycle) {
     char filename[256];
-    sprintf(filename, "output_%s__%d_%d_%d.txt", variant, V, max_w, min_w);
+    sprintf(filename, "data/output_%s__%d_%d_%d.txt", variant, V, max_w, min_w);
     FILE* fp = fopen(filename, "w");
     if (!fp) {
         perror("Failed to open output file for distance matrix");
