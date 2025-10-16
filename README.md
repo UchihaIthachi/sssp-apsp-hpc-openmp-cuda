@@ -1,4 +1,4 @@
-<a href="https://colab.research.google.com/github/UchihaIthachi/bellman-ford-hpc-openmp-cuda/blob/main/SSSP-APSP-HPC-Analysis.ipynb" target="_blank" rel="noopener noreferrer">
+<a href="https://colab.research.google.com/github/UchihaIthachi/sssp-apsp-hpc-openmp-cuda/blob/main/SSSP-APSP-HPC-Analysis.ipynb" target="_blank" rel="noopener noreferrer">
   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 </a>
 
